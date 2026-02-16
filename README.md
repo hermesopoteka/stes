@@ -26,8 +26,8 @@ JSON dosyaları kullanan, basit ve hafif tahmin etkinliği sistemi. İframe dest
 ### 1. Projeyi İndirin
 
 ```bash
-git clone https://github.com/yourcompany/cnbr-prediction-standalone.git
-cd cnbr-prediction-standalone
+git clone https://github.com/hermesopoteka/stes.git
+cd cnbr-prediction-standalone  
 ```
 
 ### 2. Bağımlılıkları Yükleyin
