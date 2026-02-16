@@ -1,0 +1,413 @@
+
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= post.title || 'Tahmin Etkinliği' %></title>
+  <link rel="stylesheet" href="/css/iframe.css">
+  <script src="/js/iframe-communication.js"></script>
+</head>
+<body>
+  <div class="iframe-container">
+    
+    <!-- Alert Messages -->
+    <% if (error === 'already') { %>
+      <div class="alert alert-error">
+        ⚠️ Bu etkinlik için zaten tahmin yaptınız.
+      </div>
+    <% } %>
+
+    <% if (success === 'true') { %>
+      <div class="alert alert-success">
+        ✅ Tahmin başarıyla kaydedildi!
+      </div>
+    <% } %>
+
+    <!-- Post Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <% if (post.title) { %>
+            <h1 class="card-title">⚽ <%= escape(post.title) %></h1>
+          <% } %>
+          
+          <% if (post.homeTeam && post.awayTeam) { %>
+            <div class="card-subtitle">
+              <%= escape(post.homeTeam) %> - <%= escape(post.awayTeam) %>
+            </div>
+          <% } %>
+        </div>
+        
+        <% if (post.deadline) { %>
+          <div>
+            <span class="badge <%= predictionOpen ? 'badge-success' : 'badge-danger' %>">
+              <%= predictionOpen ? 'AÇIK' : 'KAPANDI' %>
+            </span>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="card-body">
+        <!-- Media -->
+        <% if (post.type === 'photo' && post.fileId ) { %>
+          <div class="media-wrapper">
+            <img src="/media/<%= post.id %>" alt="Post image" class="media">
+          </div>
+        <% } else if (post.type === 'video' && post.fileId ) { %>
+          <div class="media-wrapper">
+            <video controls class="media">
+              <source src="/media/<%= post.id %>" type="video/mp4">
+            </video>
+          </div>
+        <% } %>
+
+        <!-- Text Content -->
+        <% if (post.text) { %>
+          <p style="white-space: pre-wrap; margin-bottom: 16px;"><%= escape(post.text) %></p>
+        <% } %>
+
+        <!-- Deadline Info -->
+        <% if (post.deadline) { %>
+          <div class="card-footer">
+            📅 Son Tahmin: <%= new Date(post.deadline).toLocaleString('tr-TR', { 
+              day: '2-digit', 
+              month: '2-digit', 
+              year: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Prediction Form -->
+    <% if (predictionOpen) { %>
+      <div class="card">
+        <h2 class="card-title mb-4">⚽ Tahmininizi Yapın</h2>
+        
+        <% if (hasAlreadyPredicted) { %>
+          <div class="alert alert-warning">
+            ⚠️ Bu etkinlik için zaten tahmin yaptınız.
+          </div>
+        <% } else { %>
+          <form id="prediction-form">
+            <!-- Rumuz -->
+            <div class="form-group">
+              <label class="form-label" for="rumuz">
+                Coinbar Kullanıcı Adı *
+              </label>
+              <input 
+                type="text" 
+                id="rumuz" 
+                name="rumuz" 
+                class="form-input" 
+                placeholder="Kullanıcı adınız"
+                required
+                minlength="2"
+                maxlength="30"
+                pattern="[a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+"
+              >
+              <small class="text-muted">2-30 karakter, sadece harf, rakam ve alt çizgi</small>
+            </div>
+
+            <!-- Scores -->
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="home">
+                  <%= post.homeTeam || 'Ev Sahibi' %> *
+                </label>
+                <input 
+                  type="number" 
+                  id="home" 
+                  name="home" 
+                  class="form-input" 
+                  placeholder="0"
+                  required
+                  min="0"
+                  max="99"
+                >
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="away">
+                  <%= post.awayTeam || 'Deplasman' %> *
+                </label>
+                <input 
+                  type="number" 
+                  id="away" 
+                  name="away" 
+                  class="form-input" 
+                  placeholder="0"
+                  required
+                  min="0"
+                  max="99"
+                >
+              </div>
+            </div>
+
+            <!-- Hidden Option -->
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="hidden" name="hidden" value="true">
+                <span class="text-muted" style="font-size: 0.875rem;">
+                  Tahminimi sonuç açıklanana kadar gizle
+                </span>
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary btn-block" id="submit-btn">
+              <span id="btn-text">Tahmini Gönder</span>
+              <span id="btn-loading" class="d-none">Gönderiliyor...</span>
+            </button>
+
+            <!-- Error Message -->
+            <div id="form-error" class="alert alert-error mt-4 d-none"></div>
+          </form>
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="card">
+        <div class="alert alert-error">
+          ⛔ Tahmin süresi sona ermiştir
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Stats -->
+    <div class="card">
+      <h2 class="card-title mb-4">📊 İstatistikler</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-value" id="total-predictions"><%= predictionCount %></span>
+          <span class="stat-label">Toplam Tahmin</span>
+        </div>
+        
+        <div class="stat-item">
+          <span class="stat-value" id="avg-home">-</span>
+          <span class="stat-label">Ort. Ev Sahibi</span>
+        </div>
+        
+        <div class="stat-item">
+          <span class="stat-value" id="avg-away">-</span>
+          <span class="stat-label">Ort. Deplasman</span>
+        </div>
+      </div>
+
+      <button id="load-stats-btn" class="btn btn-sm btn-primary btn-block">
+        İstatistikleri Yükle
+      </button>
+    </div>
+
+    <!-- Predictions List -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Tahminler (<%= predictionCount %>)</h2>
+      </div>
+
+      <% if (predictions.length === 0) { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">⚽</div>
+          <div class="empty-state-title">Henüz tahmin yok</div>
+          <div class="empty-state-text">İlk tahmini siz yapın!</div>
+        </div>
+      <% } else { %>
+        <div class="predictions-list" id="predictions-list">
+          <% predictions.slice(0, 20).forEach(function(p) { %>
+            <div class="prediction-item">
+              <div class="prediction-user">
+                <span class="prediction-username">@<%= escape(p.username) %></span>
+                <span class="prediction-rumuz">(<%= escape(p.rumuz) %>)</span>
+              </div>
+              <span class="prediction-score">
+                <%= p.home_score %> - <%= p.away_score %>
+              </span>
+            </div>
+          <% }); %>
+        </div>
+
+        <% if (predictions.length > 20) { %>
+          <button id="load-more-btn" class="btn btn-sm btn-primary btn-block mt-4">
+            Daha Fazla Göster
+          </button>
+        <% } %>
+      <% } %>
+    </div>
+
+  </div>
+
+  <script>
+    // Configuration
+    const POST_ID = '<%= post.id %>';
+    let currentPage = 1;
+
+    // Form submission
+    const form = document.getElementById('prediction-form');
+    if (form) {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submit-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnLoading = document.getElementById('btn-loading');
+        const errorDiv = document.getElementById('form-error');
+
+        // Disable button
+        submitBtn.disabled = true;
+        btnText.classList.add('d-none');
+        btnLoading.classList.remove('d-none');
+        errorDiv.classList.add('d-none');
+
+        const formData = {
+          rumuz: document.getElementById('rumuz').value.trim(),
+          home: document.getElementById('home').value,
+          away: document.getElementById('away').value,
+          hidden: document.getElementById('hidden').checked
+        };
+
+        try {
+          const response = await fetch('/api/predict/' + POST_ID, {
+  method: 'POST',  // Mutlaka POST
+  headers: { 
+    'Content-Type': 'application/json'  // Mutlaka bu header
+  },
+  body: JSON.stringify(formData),
+  credentials: 'include'  // Cookie göndermek için
+});
+
+          const result = await response.json();
+
+          if (response.ok) {
+            // Success
+            if (window.IframeComm) {
+              window.IframeComm.reportPredictionSubmitted(formData);
+            }
+
+            // Reload page with success message
+            window.location.href = `/widget/${POST_ID}?success=true`;
+          } else {
+            // Error
+            errorDiv.textContent = result.error || 'Bir hata oluştu';
+            errorDiv.classList.remove('d-none');
+
+            if (window.IframeComm) {
+              window.IframeComm.reportFormError(result.error);
+            }
+          }
+
+        } catch (error) {
+          console.error('Submission error:', error);
+          errorDiv.textContent = 'Bağlantı hatası. Lütfen tekrar deneyin.';
+          errorDiv.classList.remove('d-none');
+
+          if (window.IframeComm) {
+            window.IframeComm.reportError(error);
+          }
+        } finally {
+          // Re-enable button
+          submitBtn.disabled = false;
+          btnText.classList.remove('d-none');
+          btnLoading.classList.add('d-none');
+        }
+      });
+    }
+
+    // Load statistics
+    const loadStatsBtn = document.getElementById('load-stats-btn');
+    if (loadStatsBtn) {
+      loadStatsBtn.addEventListener('click', async function() {
+        try {
+          const response = await fetch(`/api/stats/${POST_ID}`);
+          const data = await response.json();
+
+          if (data.stats) {
+            document.getElementById('avg-home').textContent = 
+              data.stats.avgHome ? data.stats.avgHome.toFixed(1) : '-';
+            document.getElementById('avg-away').textContent = 
+              data.stats.avgAway ? data.stats.avgAway.toFixed(1) : '-';
+          }
+
+          loadStatsBtn.textContent = '✓ Yüklendi';
+          loadStatsBtn.disabled = true;
+
+          if (window.IframeComm) {
+            window.IframeComm.trackEvent('stats_loaded', data);
+          }
+
+        } catch (error) {
+          console.error('Stats error:', error);
+          loadStatsBtn.textContent = '✗ Hata';
+        }
+      });
+    }
+
+    // Load more predictions
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', async function() {
+        currentPage++;
+
+        try {
+          const response = await fetch(`/api/predictions/${POST_ID}?page=${currentPage}&limit=20`);
+          const data = await response.json();
+
+          if (data.predictions && data.predictions.length > 0) {
+            const list = document.getElementById('predictions-list');
+
+            data.predictions.forEach(p => {
+              const item = document.createElement('div');
+              item.className = 'prediction-item';
+              item.innerHTML = `
+                <div class="prediction-user">
+                  <span class="prediction-username">@${escapeHtml(p.username)}</span>
+                  <span class="prediction-rumuz">(${escapeHtml(p.rumuz)})</span>
+                </div>
+                <span class="prediction-score">
+                  ${p.home_score} - ${p.away_score}
+                </span>
+              `;
+              list.appendChild(item);
+            });
+
+            if (!data.hasMore) {
+              loadMoreBtn.remove();
+            }
+
+            if (window.IframeComm) {
+              window.IframeComm.reportHeight();
+            }
+          }
+
+        } catch (error) {
+          console.error('Load more error:', error);
+        }
+      });
+    }
+
+    // Helper function
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Track page view
+if (window.IframeComm) {
+  window.IframeComm.trackEvent('widget_view', {
+    postId: POST_ID,
+    predictionCount: <%= JSON.stringify(predictionCount) %>,
+    predictionOpen: <%= JSON.stringify(predictionOpen) %>
+  });
+}
+  </script>
+</body>
+</html>

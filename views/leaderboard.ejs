@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Liderlik Tablosu</title>
+  <link rel="stylesheet" href="/css/iframe.css">
+  <script src="/js/iframe-communication.js"></script>
+</head>
+<body>
+  <div class="iframe-container">
+    
+    <div class="card">
+      <div class="card-header">
+        <h1 class="card-title">🏆 Liderlik Tablosu</h1>
+        <span class="badge badge-info"><%= leaders.length %> Kullanıcı</span>
+      </div>
+
+      <% if (leaders.length === 0) { %>
+        <div class="empty-state">
+          <div class="empty-state-icon">🏆</div>
+          <div class="empty-state-title">Henüz tahmin yok</div>
+          <div class="empty-state-text">İlk tahmini yapan siz olun!</div>
+        </div>
+      <% } else { %>
+        <ul class="leaderboard">
+          <% leaders.forEach(function(user, index) { 
+            const rank = index + 1;
+            const isTop3 = rank <= 3;
+            const rankClass = rank === 1 ? 'first' : rank === 2 ? 'second' : rank === 3 ? 'third' : '';
+          %>
+            <li class="leaderboard-item <%= isTop3 ? 'top-3' : '' %>">
+              <div class="leaderboard-rank <%= rankClass %>">
+                <% if (rank === 1) { %>
+                  🥇
+                <% } else if (rank === 2) { %>
+                  🥈
+                <% } else if (rank === 3) { %>
+                  🥉
+                <% } else { %>
+                  <%= rank %>
+                <% } %>
+              </div>
+
+              <div class="leaderboard-user">
+                <div class="leaderboard-username">
+                  @<%= escape(user.username) %>
+                  <% if (user.rumuz && user.rumuz !== user.username) { %>
+                    · <%= escape(user.rumuz) %>
+                  <% } %>
+                </div>
+                <div class="leaderboard-stats">
+                  <%= user.correct_predictions %>/<%= user.total_predictions %> doğru
+                  · %<%= user.accuracy ? user.accuracy.toFixed(1) : '0' %> başarı
+                  <% if (user.streak > 0) { %>
+                    · 🔥 <%= user.streak %> seri
+                  <% } %>
+                </div>
+              </div>
+
+              <div class="leaderboard-points">
+                <%= user.total_points %> 
+                <span style="font-size: 0.75rem; color: var(--text-muted);">puan</span>
+              </div>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+
+      <div class="card-footer text-center text-muted">
+        Son güncelleme: <%= new Date().toLocaleString('tr-TR', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }) %>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="card">
+      <h3 class="card-title" style="font-size: 1rem; margin-bottom: 12px;">
+        📖 Nasıl Puan Kazanılır?
+      </h3>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+          ✅ Doğru tahmin: <strong>+10 puan</strong>
+        </li>
+        <li style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+          🔥 Seri: Art arda doğru tahminler
+        </li>
+        <li style="padding: 8px 0;">
+          📊 Başarı: Doğru tahmin yüzdesi
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    // Track leaderboard view
+    if (window.IframeComm) {
+      window.IframeComm.trackEvent('leaderboard_view', {
+        userCount: <%= leaders.length %>
+      });
+    }
+
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+      window.location.reload();
+    }, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
